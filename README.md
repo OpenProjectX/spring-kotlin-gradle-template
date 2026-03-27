@@ -2,6 +2,81 @@
 
 A [Cookiecutter](https://cookiecutter.readthedocs.io/) template for creating multi-module Spring Boot starters in Kotlin with Gradle, ready for publication to Maven Central.
 
+## Using this template on GitHub
+
+There are two ways to use this template:
+
+### Option A — Cookiecutter (recommended)
+
+Cookiecutter fills in all variables for you interactively.
+
+**1. Install Cookiecutter (once)**
+
+```bash
+pipx install cookiecutter   # Debian/Ubuntu
+# or: brew install cookiecutter
+# or: pip install cookiecutter
+```
+
+**2. Generate a new project**
+
+```bash
+# From GitHub (replace with your username/org):
+cookiecutter gh:openprojectx/spring-kotlin-gradle-template
+
+# Pin to a specific release:
+cookiecutter gh:openprojectx/spring-kotlin-gradle-template --checkout v1.0.0
+
+# From a local clone:
+cookiecutter path/to/spring-kotlin-gradle-template
+```
+
+Cookiecutter prompts for each variable, then generates a ready-to-use project in a new directory.
+
+### Option B — GitHub "Use this template" button
+
+Click **Use this template → Create a new repository** on the GitHub page.
+This copies the repo as-is (including the `{{cookiecutter.*}}` placeholders).
+You must then manually find-and-replace the placeholder values:
+
+| Placeholder | Replace with |
+|---|---|
+| `{{cookiecutter.project_slug}}` | your project directory name |
+| `{{cookiecutter.group_id}}` | your Maven group ID |
+| `{{cookiecutter.library_name}}` | your library short name |
+| `{{cookiecutter.main_class_name}}` | your main class prefix |
+| `{{cookiecutter.github_username}}` | your GitHub username/org |
+| _(all others in `cookiecutter.json`)_ | your values |
+
+Also rename the `{{cookiecutter.project_slug}}/` directory itself, and the files inside `autoconfigure/` and `starter/` that contain `{{cookiecutter.library_name}}` in their names.
+
+**Option A is strongly recommended** — manual substitution is error-prone.
+
+## Making this repo a GitHub Template Repository
+
+To enable the "Use this template" button:
+
+1. Go to **Settings** of this repository on GitHub
+2. Under **General**, check **Template repository**
+3. Save
+
+Once enabled, visitors see a green **Use this template** button at the top of the repo page.
+
+## Versioning and releases
+
+Tag releases so users can pin to a stable version:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Users can then use:
+
+```bash
+cookiecutter gh:openprojectx/spring-kotlin-gradle-template --checkout v1.0.0
+```
+
 ## Generated project structure
 
 ```
@@ -21,27 +96,6 @@ A [Cookiecutter](https://cookiecutter.readthedocs.io/) template for creating mul
 ├── build.gradle.kts              # Maven Central publishing + GPG signing
 ├── settings.gradle.kts           # Auto-discovers subprojects
 └── gradle.properties
-```
-
-## Requirements
-
-- Python 3.8+
-- [Cookiecutter](https://cookiecutter.readthedocs.io/en/stable/README.html#installation)
-
-```bash
-pip install cookiecutter
-```
-
-## Usage
-
-```bash
-cookiecutter gh:openprojectx/spring-kotlin-gradle-template
-```
-
-Or from a local clone:
-
-```bash
-cookiecutter path/to/spring-kotlin-gradle-template
 ```
 
 ## Template variables
