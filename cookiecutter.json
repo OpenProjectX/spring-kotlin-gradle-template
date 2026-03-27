@@ -1,0 +1,17 @@
+{
+  "project_name": "My Spring Boot Starter",
+  "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '-') }}",
+  "group_id": "org.example",
+  "library_name": "mylib",
+  "main_class_name": "MyLib",
+  "description": "A Spring Boot starter",
+  "github_username": "username",
+  "github_repo": "{{ cookiecutter.project_slug }}",
+  "developer_id": "username",
+  "developer_name": "Your Name",
+  "developer_email": "your@email.com",
+  "kotlin_version": "2.2.21",
+  "spring_boot_version": "4.0.5",
+  "java_version": "17",
+  "_copy_without_render": ["*.jar"]
+}
