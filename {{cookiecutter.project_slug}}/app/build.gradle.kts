@@ -6,6 +6,6 @@ plugins {
 
 dependencies {
 
-    implementation(project(":{{ cookiecutter.library_name }}-spring-boot-starter"))
+    implementation(project(":{{ cookiecutter.project_slug }}-spring-boot-starter"))
 
 }
