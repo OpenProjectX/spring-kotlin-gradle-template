@@ -1,4 +1,4 @@
-package {{ cookiecutter.group_id }}.{{ cookiecutter.library_name }}.app
+package {{ cookiecutter.group_id }}.app
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

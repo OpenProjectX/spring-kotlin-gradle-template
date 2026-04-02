@@ -9,8 +9,8 @@ group_id = "{{ cookiecutter.group_id }}"
 library_name = "{{ cookiecutter.library_name }}"
 main_class_name = "{{ cookiecutter.main_class_name }}"
 
-# Build the package path from group_id + library_name
-package_path = group_id.replace(".", "/") + "/" + library_name
+# Build the package path directly from group_id
+package_path = group_id.replace(".", "/")
 
 # Source: flat file placed by Cookiecutter
 src_file = os.path.join("app", "src", "main", "kotlin", f"{main_class_name}Application.kt")
@@ -31,7 +31,7 @@ if os.path.exists(gradlew_path):
 
 print(f"\nProject '{{ cookiecutter.project_name }}' generated successfully!")
 print(f"  Library name : {library_name}")
-print(f"  Package      : {group_id}.{library_name}.app")
+print(f"  Package      : {group_id}.app")
 print(f"  Main class   : {main_class_name}Application")
 print(f"\nGet started:")
 print(f"  cd {{ cookiecutter.project_slug }}")
