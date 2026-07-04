@@ -9,7 +9,7 @@ plugins {
 }
 
 allprojects {
-    group = "{{ cookiecutter.group_id }}.{{ cookiecutter.library_name }}"
+    group = "{{ cookiecutter.group_id }}"
 }
 
 
