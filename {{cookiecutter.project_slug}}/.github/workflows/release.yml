@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      gradle_args:
+        description: "Extra Gradle arguments, for example: --stacktrace"
+        required: false
+        default: ""
+        type: string
+      gradle_log_level:
+        description: "Gradle log level"
+        required: false
+        default: info
+        type: choice
+        options:
+          - quiet
+          - warn
+          - lifecycle
+          - info
+          - debug
+      skip_tests:
+        description: "Skip verification before release"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-master
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      {% raw %}${{ github.event_name == 'workflow_dispatch' ||
+      (
+        !contains(github.event.head_commit.message, '[Gradle Release Plugin]') &&
+        !contains(github.event.head_commit.message, '[skip ci]') &&
+        !contains(github.event.head_commit.message, '[ci skip]') &&
+        !contains(github.event.head_commit.message, '[no ci]') &&
+        !contains(github.event.head_commit.message, '[skip actions]') &&
+        !contains(github.event.head_commit.message, '[actions skip]') &&
+        !contains(github.event.head_commit.message, 'skip-checks:true')
+      ) }}{% endraw %}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    env:
+      GRADLE_OPTS: >-
+        -Dorg.gradle.daemon=false
+        -Dorg.gradle.internal.http.connectionTimeout=120000
+        -Dorg.gradle.internal.http.socketTimeout=300000
+        -Djib.httpTimeout=300000
+        -Djib.serialize=true
+      EXTRA_GRADLE_ARGS: {% raw %}${{ inputs.gradle_args || '' }}{% endraw %}
+      GRADLE_LOG_LEVEL: {% raw %}${{ inputs.gradle_log_level || 'info' }}{% endraw %}
+      SKIP_TESTS: {% raw %}${{ inputs.skip_tests || 'false' }}{% endraw %}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: {% raw %}${{ secrets.RELEASE_GITHUB_TOKEN }}{% endraw %}
+
+      - name: Set up JDK {{ cookiecutter.java_version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "{{ cookiecutter.java_version }}"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Cache Jib
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/google-cloud-tools-java/jib
+            ~/.gradle/caches/jib
+          key: jib-{% raw %}${{ runner.os }}-${{ github.sha }}{% endraw %}
+          restore-keys: |
+            jib-{% raw %}${{ runner.os }}-{% endraw %}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Verify build
+        if: env.SKIP_TESTS != 'true'
+        run: ./gradlew --no-configuration-cache check --stacktrace "--$GRADLE_LOG_LEVEL"
+
+      - name: Write signing key
+        env:
+          SIGNING_KEY_ASC: {% raw %}${{ secrets.SIGNING_KEY_ASC }}{% endraw %}
+        run: printf '%s' "$SIGNING_KEY_ASC" > "$RUNNER_TEMP/signing-key.asc"
+
+      - name: Capture release metadata
+        run: |
+          release_version="$(awk -F= '/^[[:space:]]*version[[:space:]]*=/{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2; exit}' gradle.properties)"
+          if [ -z "$release_version" ]; then
+            echo "Could not read version from gradle.properties" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=${release_version%-SNAPSHOT}" >> "$GITHUB_ENV"
+
+      - name: Run release
+        id: run_release
+        timeout-minutes: 150
+        env:
+          OSSRH_USERNAME: {% raw %}${{ secrets.OSSRH_USERNAME }}{% endraw %}
+          OSSRH_PASSWORD: {% raw %}${{ secrets.OSSRH_PASSWORD }}{% endraw %}
+          SIGNING_KEY_FILE: {% raw %}${{ runner.temp }}/signing-key.asc{% endraw %}
+          SIGNING_KEY_PASSWORD: {% raw %}${{ secrets.SIGNING_KEY_PASSWORD }}{% endraw %}
+          JIB_TO_IMAGE: ghcr.io/{{ cookiecutter.github_username.lower() }}/{{ cookiecutter.github_repo }}
+          JIB_TO_USERNAME: {% raw %}${{ github.actor }}{% endraw %}
+          JIB_TO_PASSWORD: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+        run: |
+          skip_test_args=()
+          if [ "$SKIP_TESTS" = "true" ]; then
+            skip_test_args=(-x test)
+          fi
+          ./gradlew --no-configuration-cache release --stacktrace "--$GRADLE_LOG_LEVEL" "${skip_test_args[@]}" $EXTRA_GRADLE_ARGS
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-diagnostics-{% raw %}${{ github.run_id }}-${{ github.run_attempt }}{% endraw %}
+          path: |
+            **/build/reports/
+            **/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Write release publish summary
+        if: always() && env.RELEASE_VERSION != ''
+        env:
+          RELEASE_OUTCOME: {% raw %}${{ steps.run_release.outcome }}{% endraw %}
+        run: |
+          group_id="{{ cookiecutter.group_id }}"
+          version="$RELEASE_VERSION"
+          image="ghcr.io/{{ cookiecutter.github_username.lower() }}/{{ cookiecutter.github_repo }}:${version}"
+          artifacts=(
+            "core"
+            "{{ cookiecutter.project_slug }}-spring-boot-autoconfigure"
+            "{{ cookiecutter.project_slug }}-spring-boot-starter"
+          )
+
+          {
+            if [ "$RELEASE_OUTCOME" = "success" ]; then
+              echo "## Release publish summary"
+            else
+              echo "## Release publish attempt"
+            fi
+            echo
+            echo "- Version: \`${version}\`"
+            echo "- Release result: \`${RELEASE_OUTCOME}\`"
+            echo "- Maven group: \`${group_id}\`"
+            echo "- Container image: \`${image}\`"
+            echo
+            if [ "$RELEASE_OUTCOME" != "success" ]; then
+              echo "> The release did not complete successfully. These are the planned Maven Central coordinates; check the Gradle log for partial uploads."
+              echo
+            fi
+            echo "| Artifact | Maven coordinate | Maven Central |"
+            echo "|---|---|---|"
+            for artifact in "${artifacts[@]}"; do
+              coordinate="${group_id}:${artifact}:${version}"
+              central_url="https://central.sonatype.com/artifact/${group_id}/${artifact}/${version}"
+              echo "| \`${artifact}\` | \`${coordinate}\` | [artifact](${central_url}) |"
+            done
+            echo
+            echo "> Maven Central search can lag briefly after Sonatype release completes."
+          } >> "$GITHUB_STEP_SUMMARY"

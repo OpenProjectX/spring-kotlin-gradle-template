@@ -93,6 +93,8 @@ cookiecutter gh:openprojectx/spring-kotlin-gradle-template --checkout v1.0.0
 │       └── spring-kotlin.gradle.kts
 ├── gradle/
 │   └── libs.versions.toml        # Centralized dependency versions
+├── .github/workflows/
+│   └── release.yml               # Maven Central release automation
 ├── build.gradle.kts              # Maven Central publishing + GPG signing
 ├── settings.gradle.kts           # Auto-discovers subprojects
 └── gradle.properties
@@ -129,6 +131,21 @@ export SIGNING_KEY_PASSWORD=...
 
 ./gradlew release
 ```
+
+The generated `Release` GitHub Actions workflow runs on pushes to `master` and
+can also be started manually. Configure these repository secrets before using it:
+
+| Secret | Purpose |
+|---|---|
+| `RELEASE_GITHUB_TOKEN` | Pushes the release commit and tag back to the repository |
+| `OSSRH_USERNAME` | Maven Central publishing username or token name |
+| `OSSRH_PASSWORD` | Maven Central publishing password or token |
+| `SIGNING_KEY_ASC` | ASCII-armored private signing key |
+| `SIGNING_KEY_PASSWORD` | Signing key passphrase |
+
+The release token needs repository contents write access. The workflow verifies
+the build, publishes signed artifacts and a GHCR image, uploads test diagnostics
+on failure, and writes Maven Central links to the run summary.
 
 ## Tech stack
 
